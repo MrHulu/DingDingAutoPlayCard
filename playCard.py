@@ -4,12 +4,15 @@ import time
 import setting
 import datetime
 import smtplib
+import os
+import random
+
 from email.mime.text import MIMEText
 from email.mime.image import MIMEImage
 from email.mime.multipart import MIMEMultipart
 
 
-go_hour = int(setting.go_hour) - 1
+go_hour = int(setting.go_hour)
 back_hour = int(setting.back_hour)
 directory = setting.directory
 sender = setting.sender
@@ -22,12 +25,14 @@ screen_dir = setting.screen_dir
 def with_open_close_dingding(func):
     def wrapper(self, *args, **kwargs):
         print("打开钉钉")
-        operation_list = [self.adbpower, self.adbopen_dingding]
+        operation_list = [self.adbpower, self.adbclear, self.adbopen_dingding]
         for operation in operation_list:
             process = subprocess.Popen(operation, shell=False, stdout=subprocess.PIPE)
             process.wait()
         # 确保完全启动，并且加载上相应按键（根据手机响应速度可以调整这里）
-        time.sleep(10)
+        time.sleep(8)
+        
+        print("进入打卡页面")
         operation_list1 = [self.adbselect_work, self.adbselect_playcard]
         for operation in operation_list1:
             process = subprocess.Popen(operation, shell=False, stdout=subprocess.PIPE)
@@ -35,9 +40,11 @@ def with_open_close_dingding(func):
             # 等待点击屏幕后响应
             time.sleep(2)
         # 等待工作页面加载
-        time.sleep(30)
-        # 执行打卡操作
+        time.sleep(10)
+        
+        # print("执行打卡操作")
         func(self, *args, **kwargs)
+        
         print("关闭钉钉")
         operation_list2 = [self.adbback_index, self.adbkill_dingding, self.adbpower]
         for operation in operation_list2:
@@ -52,36 +59,37 @@ class dingDing:
     def __init__(self, directory):
         self.directory = directory
         # 点亮屏幕
-        self.adbpower = '"%s\\adb" shell input keyevent 26' % directory
+        self.adbpower = 'adb shell input keyevent 26'
         # 滑屏解锁
-        # self.adbclear = '"%s\\adb" shell input swipe %s' % (directory, config.light_position)
+        self.adbclear = 'adb shell input swipe %s' % (setting.light_position)
         # 启动钉钉应用
-        self.adbopen_dingding = '"%s\\adb" shell monkey -p com.alibaba.android.rimet -c android.intent.category.LAUNCHER 1' % directory
+        self.adbopen_dingding = 'adb shell monkey -p com.alibaba.android.rimet -c android.intent.category.LAUNCHER 1'
         # 关闭钉钉
-        self.adbkill_dingding = '"%s\\adb" shell am force-stop com.alibaba.android.rimet' % directory
+        self.adbkill_dingding = 'adb shell am force-stop com.alibaba.android.rimet'
         # 返回桌面
-        self.adbback_index = '"%s\\adb" shell input keyevent 3' % directory
+        self.adbback_index = 'adb shell input keyevent 3'
         # 点击工作
-        self.adbselect_work = '"%s\\adb" shell input tap %s' % (directory, setting.work_position)
+        self.adbselect_work = 'adb shell input tap %s' % (setting.work_position)
         # 点击考勤打卡
-        self.adbselect_playcard = '"%s\\adb" shell input tap %s' % (directory, setting.check_position)
+        self.adbselect_playcard = 'adb shell input tap %s' % (setting.card_position)
         # 点击下班打卡
-        self.adbclick_playcard = '"%s\\adb" shell input tap %s' % (directory, setting.play_position)
+        self.adbclick_playcard = 'adb shell input tap %s' % (setting.play_position)
         # 设备截屏保存到sdcard
-        self.adbscreencap = '"%s\\adb" shell screencap -p sdcard/screen.png' % directory
+        self.adbscreencap = 'adb shell screencap -p sdcard/screen.png'
         # 传送到计算机
-        self.adbpull = '"%s\\adb" pull sdcard/screen.png %s' % (directory, screen_dir)
+        self.adbpull = 'adb pull sdcard/screen.png %s' % (screen_dir)
         # 删除设备截屏
-        self.adbrm_screencap = '"%s\\adb" shell rm -r sdcard/screen.png' % directory
+        self.adbrm_screencap = 'adb shell rm -r sdcard/screen.png'
 
     # 点亮屏幕 》》解锁 》》打开钉钉
     def open_dingding(self):
-        operation_list = [self.adbpower, self.adbopen_dingding]
+        operation_list = [self.adbpower, self.adbclear, self.adbopen_dingding]
+        print(f'open_dingding: {operation_list}')
         for operation in operation_list:
             process = subprocess.Popen(operation, shell=False, stdout=subprocess.PIPE)
             process.wait()
         # 确保完全启动，并且加载上相应按键
-        time.sleep(20)
+        time.sleep(8)
         print("open dingding success")
 
     # 返回桌面 》》 退出钉钉 》》 手机黑屏
@@ -107,8 +115,16 @@ class dingDing:
             process = subprocess.Popen(operation, shell=False, stdout=subprocess.PIPE)
             process.wait()
             time.sleep(2)
-        time.sleep(30)
+        time.sleep(10)
         print("open playcard success")
+
+    # 手动点击打开
+    def click_playcard(self):
+        print("打卡")
+        process = subprocess.Popen([self.adbclick_playcard], shell=False, stdout=subprocess.PIPE)
+        process.wait()
+        time.sleep(2)
+        print("完成打卡")
 
     # 下班
     @with_open_close_dingding
@@ -141,11 +157,12 @@ class dingDing:
         message = MIMEMultipart('related')
         subject = now_time + '打卡'
         message['Subject'] = subject
-        message['From'] = "日常打卡"
+        # message['From'] = "日常打卡"
+        message['From'] = sender
         message['To'] = receive
         content = MIMEText('<html><body><img src="cid:imageid" alt="imageid"></body></html>', 'html', 'utf-8')
         message.attach(content)
-        file = open(screen_dir, "rb")
+        file = open(os.path.join(screen_dir, "screen.png"), "rb")
         img_data = file.read()
         file.close()
         img = MIMEImage(img_data)
@@ -170,11 +187,25 @@ def job2():
     print("开始打卡")
     dingDing(directory).off_work()
 
+def get_random_minute(min, max, num):
+    rnd = random.random()
+    if rnd > 0.8:
+        rand = random.randint(min, max)
+    else:
+        rand = random.randint(num, max)
+    return rand
 
 # BlockingScheduler
 if __name__ == '__main__':
-    scheduler = BlockingScheduler()
-    scheduler.add_job(job1, 'cron', day_of_week='1-5', hour=go_hour, minute=38)
-    scheduler.add_job(job2, 'cron', day_of_week='1-5', hour=back_hour, minute=2)
-    scheduler.start()
-    # dingDing(directory).open_dingding()
+    # scheduler = BlockingScheduler()
+    # scheduler.add_job(job1, 'cron', day_of_week='1-5', hour=go_hour, minute=get_random_minute(15,30,25))
+    # scheduler.add_job(job2, 'cron', day_of_week='1-5', hour=back_hour, minute=get_random_minute(0,10,5))
+    # scheduler.start()
+    print(directory)
+    d = dingDing(directory)
+    d.open_dingding()
+    d.openplaycard_interface()
+    # d.click_playcard()
+    d.screencap()
+    d.send_email()
+    d.close_dingding()
