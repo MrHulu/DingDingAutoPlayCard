@@ -1,24 +1,26 @@
 # adb install path
-directory = "D:\Program Files (x86)"
+directory = "E:\ADB"
 #  go work time  if you are 9  here need  add 8
 go_hour = 9
 # back work time if you are 18 here need add 18
-back_hour = 18
-# send person
-sender = "1414044032@qq.com"
+back_hour = 21
+# send personr
+sender = "491849417@qq.com"
 # password  Generally, third party login is required authorization code
-psw = "123456"
+psw = "macqqfctlrnrbhic"
 # recevie  here It could be yourself
-receive = "1414044032@qq.com"
+receive = "491849417@qq.com"
 
 # Screen shot image path (do not include Spaces in the path, in order to save the screen shot sent by the phone, and save it in the email)
-screen_dir = "D:"
+screen_dir = "E:\ok"
 # Touch the screen on a series of coordinates.
 # Slide to unlock
-light_position = "300 1000 300 500"
+light_position = "500 2000 500 1300"
 # Click "work"
-work_position = "540 1844"
+work_position = "540 2100"
+# Click "Card"
+card_position = "150 1000"
 # Click "time check"
 check_position = "663 1377"
 # Click on "off duty"
-play_position = "538 1115"
+play_position = "550 1300"
