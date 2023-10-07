@@ -33,7 +33,7 @@ def with_open_close_dingding(func):
             process = subprocess.Popen(operation, shell=False, stdout=subprocess.PIPE)
             process.wait()
         # 确保完全启动，并且加载上相应按键（根据手机响应速度可以调整这里）
-        time.sleep(8)
+        time.sleep(15)
         
         print("打开打卡界面中...")
         operation_list1 = [self.adbselect_work, self.adbselect_playcard]
@@ -41,9 +41,9 @@ def with_open_close_dingding(func):
             process = subprocess.Popen(operation, shell=False, stdout=subprocess.PIPE)
             process.wait()
             # 等待点击屏幕后响应
-            time.sleep(2)
+            time.sleep(5)
         # 等待工作页面加载
-        time.sleep(10)
+        time.sleep(20)
         
         # print("执行打卡操作")
         func(self, *args, **kwargs)
@@ -93,7 +93,7 @@ class dingDing:
             process = subprocess.Popen(operation, shell=False, stdout=subprocess.PIPE)
             process.wait()
         # 确保完全启动，并且加载上相应按键
-        time.sleep(8)
+        time.sleep(15)
         print("成功打开钉钉")
 
     # 2 打开打卡界面
@@ -103,8 +103,8 @@ class dingDing:
         for operation in operation_list:
             process = subprocess.Popen(operation, shell=False, stdout=subprocess.PIPE)
             process.wait()
-            time.sleep(2)
-        time.sleep(10)
+            time.sleep(5)
+        time.sleep(20)
         print("成功打开打卡界面")
 
     # 3 截屏>> 发送到电脑 >> 删除手机中保存的截屏
@@ -159,9 +159,11 @@ class dingDing:
     # 手动点击打开
     def click_playcard(self):
         print("打卡")
-        process = subprocess.Popen([self.adbclick_playcard], shell=False, stdout=subprocess.PIPE)
-        process.wait()
-        time.sleep(2)
+        operation_list = [self.adbclick_playcard]
+        for operation in operation_list:
+            process = subprocess.Popen(operation, shell=False, stdout=subprocess.PIPE)
+            process.wait()
+            time.sleep(3)
         print("完成打卡")
 
     # 上班(极速打卡)
@@ -189,7 +191,7 @@ def auto_playCard(num):
     scheduler = BlockingScheduler()
 
     # 一周早上
-    trigger = CronTrigger(day_of_week='mon-fri', hour=9, minute=25, jitter=240)
+    trigger = CronTrigger(day_of_week='mon-fri', hour=9, minute=23, jitter=240)
     scheduler.add_job(dingDing(directory).goto_work, trigger=trigger)
 
     if num == 1:
@@ -246,7 +248,7 @@ def manually_playCard():
     d = dingDing(directory)
     d.open_dingding()
     d.openplaycard_interface()
-    # d.click_playcard()
+    #d.click_playcard()
     d.screencap()
     d.send_email()
     d.close_dingding()
@@ -254,5 +256,6 @@ def manually_playCard():
 # BlockingScheduler
 if __name__ == '__main__':
 
-    auto_playCard(7)
-    # manually_playCard()
+    print('开始执行')
+    auto_playCard(4)
+    #manually_playCard()
