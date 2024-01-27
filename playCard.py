@@ -36,7 +36,7 @@ def with_open_close_dingding(func):
         time.sleep(15)
         
         print("打开打卡界面中...")
-        operation_list1 = [self.adbselect_work, self.adbselect_playcard]
+        operation_list1 = [self.adbselect_work, self.adbselect_work, self.adbselect_playcard]
         for operation in operation_list1:
             process = subprocess.Popen(operation, shell=False, stdout=subprocess.PIPE)
             process.wait()
@@ -99,7 +99,7 @@ class dingDing:
     # 2 打开打卡界面
     def openplaycard_interface(self):
         print("打开打卡界面中...")
-        operation_list = [self.adbselect_work, self.adbselect_playcard]
+        operation_list = [self.adbselect_work, self.adbselect_work, self.adbselect_playcard]
         for operation in operation_list:
             process = subprocess.Popen(operation, shell=False, stdout=subprocess.PIPE)
             process.wait()
@@ -130,14 +130,21 @@ class dingDing:
         # message['From'] = "日常打卡"
         message['From'] = sender
         message['To'] = receive
-        content = MIMEText('<html><body><img src="cid:imageid" alt="imageid"></body></html>', 'html', 'utf-8')
+
+        # Attach images
+        content_html = '<html><body>'
+        for filename in os.listdir(screen_dir):
+            if filename.endswith('.png'):
+                content_html += f'<p>{filename}</p>'
+                content_html += f'<img src="cid:{filename}" alt="{filename}"><br>'
+                with open(os.path.join(screen_dir, filename), 'rb') as file:
+                    img_data = file.read()
+                img = MIMEImage(img_data)
+                img.add_header('Content-ID', f'<{filename}>')
+                message.attach(img)
+        content_html += '</body></html>'
+        content = MIMEText(content_html, 'html', 'utf-8')
         message.attach(content)
-        file = open(os.path.join(screen_dir, "screen.png"), "rb")
-        img_data = file.read()
-        file.close()
-        img = MIMEImage(img_data)
-        img.add_header('Content-ID', 'imageid')
-        message.attach(img)
         try:
             server = smtplib.SMTP_SSL("smtp.qq.com", 465)
             server.login(sender, psw)
@@ -214,27 +221,26 @@ def auto_playCard(num):
         scheduler.add_job(dingDing(directory).off_work, trigger=trigger)
     elif num == 4:
         # [一二]21:30
-        # [四]22:00
+        # [四]21:00
         trigger = CronTrigger(day_of_week='mon,tue', hour=21, minute=30, jitter=180)
         scheduler.add_job(dingDing(directory).off_work, trigger=trigger)
-        trigger = CronTrigger(day_of_week='thu', hour=22, minute=0, jitter=120)
+        trigger = CronTrigger(day_of_week='thu', hour=21, minute=0, jitter=120)
         scheduler.add_job(dingDing(directory).off_work, trigger=trigger)
     elif num == 5:
         # [二三]21:00
-        # [四]22:30
+        # [四]21:30
         trigger = CronTrigger(day_of_week='tue,wed', hour=21, minute=0, jitter=180)
         scheduler.add_job(dingDing(directory).off_work, trigger=trigger)
-        trigger = CronTrigger(day_of_week='thu', hour=22, minute=30, jitter=120)
+        trigger = CronTrigger(day_of_week='thu', hour=21, minute=30, jitter=120)
         scheduler.add_job(dingDing(directory).off_work, trigger=trigger)
     elif num == 6:
         # [二四]21:30
         trigger = CronTrigger(day_of_week='tue,thu', hour=21, minute=30, jitter=180)
         scheduler.add_job(dingDing(directory).off_work, trigger=trigger)
     elif num == 7:
-        # [三]22:00
-        # [四]21:00
-        trigger = CronTrigger(day_of_week='wed', hour=22, minute=00, jitter=180)
-        scheduler.add_job(dingDing(directory).off_work, trigger=trigger)
+        # [三四]21:00
+        trigger = CronTrigger(day_of_week='wed', hour=21, minute=00, jitter=180)
+        scheduler.a881dd_job(dingDing(directory).off_work, trigger=trigger)
         trigger = CronTrigger(day_of_week='thu', hour=21, minute=00, jitter=180)
         scheduler.add_job(dingDing(directory).off_work, trigger=trigger)
     else:
@@ -243,19 +249,27 @@ def auto_playCard(num):
 
     scheduler.start()
 
+def handling():
+        operation_list = ['adb shell input keyevent 26']
+        print('熄灭屏幕')
+        for operation in operation_list:
+            process = subprocess.Popen(operation, shell=False, stdout=subprocess.PIPE)
+            process.wait()
+
 # 手动打卡，测试用，下班也生效的话，请在钉钉里设置下班也是极速打卡且每次打开钉钉会自动更新打卡
 def manually_playCard():
     d = dingDing(directory)
     d.open_dingding()
     d.openplaycard_interface()
-    #d.click_playcard()
+    d.click_playcard()
     d.screencap()
     d.send_email()
     d.close_dingding()
 
 # BlockingScheduler
 if __name__ == '__main__':
-
-    print('开始执行')
-    auto_playCard(4)
-    #manually_playCard()
+    # handling()
+    # num = 3
+    # print('开始执行策列：', num)
+    # auto_playCard(num)
+    manually_playCard()
