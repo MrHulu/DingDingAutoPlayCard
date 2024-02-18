@@ -36,6 +36,7 @@ def with_open_close_dingding(func):
         time.sleep(15)
         
         print("打开打卡界面中...")
+        self.screencap('dingding_home')
         operation_list1 = [self.adbselect_work, self.adbselect_work, self.adbselect_playcard]
         for operation in operation_list1:
             process = subprocess.Popen(operation, shell=False, stdout=subprocess.PIPE)
@@ -44,6 +45,7 @@ def with_open_close_dingding(func):
             time.sleep(5)
         # 等待工作页面加载
         time.sleep(20)
+        self.screencap('playcard_interface')
         
         # print("执行打卡操作")
         func(self, *args, **kwargs)
@@ -78,12 +80,6 @@ class dingDing:
         self.adbselect_playcard = 'adb shell input tap %s' % (setting.card_position)
         # 点击打卡
         self.adbclick_playcard = 'adb shell input tap %s' % (setting.play_position)
-        # 设备截屏保存到sdcard
-        self.adbscreencap = 'adb shell screencap -p sdcard/screen.png'
-        # 传送到计算机
-        self.adbpull = 'adb pull sdcard/screen.png %s' % (screen_dir)
-        # 删除设备截屏
-        self.adbrm_screencap = 'adb shell rm -r sdcard/screen.png'
 
     # 1 点亮屏幕 》》解锁 》》打开钉钉
     def open_dingding(self):
@@ -95,6 +91,7 @@ class dingDing:
         # 确保完全启动，并且加载上相应按键
         time.sleep(15)
         print("成功打开钉钉")
+        self.screencap("dingding_home")
 
     # 2 打开打卡界面
     def openplaycard_interface(self):
@@ -106,15 +103,22 @@ class dingDing:
             time.sleep(5)
         time.sleep(20)
         print("成功打开打卡界面")
+        self.screencap('playcard_interface')
 
     # 3 截屏>> 发送到电脑 >> 删除手机中保存的截屏
-    def screencap(self):
-        print("截屏, 发送至电脑中...")
-        operation_list = [self.adbscreencap, self.adbpull, self.adbrm_screencap]
+    def screencap(self, name):
+        print(f"截屏{name}, 发送至电脑中...")
+        # 设备截屏保存到sdcard
+        adbscreencap = f'adb shell screencap -p sdcard/{name}.png'
+        # 传送到计算机
+        adbpull = f'adb pull sdcard/{name}.png {screen_dir}'
+        # 删除设备截屏
+        adbrm_screencap = f'adb shell rm -r sdcard/{name}.png'
+        operation_list = [adbscreencap, adbpull, adbrm_screencap]
         for operation in operation_list:
             process = subprocess.Popen(operation, shell=False, stdout=subprocess.PIPE)
             process.wait()
-        print("成功发送至电脑")
+        print(f"成功发送<<{name}>>至电脑")
 
     # 4 发送邮件（QQ邮箱）
     @staticmethod
@@ -135,13 +139,14 @@ class dingDing:
         content_html = '<html><body>'
         for filename in os.listdir(screen_dir):
             if filename.endswith('.png'):
-                content_html += f'<p>{filename}</p>'
-                content_html += f'<img src="cid:{filename}" alt="{filename}"><br>'
                 with open(os.path.join(screen_dir, filename), 'rb') as file:
+                    content_html += f'<p>{filename}</p>'
+                    content_html += f'<img src="cid:{filename}" alt="{filename}"><br>'
                     img_data = file.read()
-                img = MIMEImage(img_data)
-                img.add_header('Content-ID', f'<{filename}>')
-                message.attach(img)
+                    file.close()
+                    img = MIMEImage(img_data)
+                    img.add_header('Content-ID', f'<{filename}>')
+                    message.attach(img)
         content_html += '</body></html>'
         content = MIMEText(content_html, 'html', 'utf-8')
         message.attach(content)
@@ -172,11 +177,12 @@ class dingDing:
             process.wait()
             time.sleep(3)
         print("完成打卡")
+        self.screencap('result')
+        
 
     # 上班(极速打卡)
     @with_open_close_dingding
     def goto_work(self):
-        self.screencap()
         self.send_email()
         print("上班打卡成功")
 
@@ -188,7 +194,6 @@ class dingDing:
             process = subprocess.Popen(operation, shell=False, stdout=subprocess.PIPE)
             process.wait()
             time.sleep(3)
-        self.screencap()
         self.send_email()
         print("下班打卡成功")
 
@@ -262,14 +267,13 @@ def manually_playCard():
     d.open_dingding()
     d.openplaycard_interface()
     d.click_playcard()
-    d.screencap()
     d.send_email()
     d.close_dingding()
 
 # BlockingScheduler
 if __name__ == '__main__':
     # handling()
-    # num = 3
+    num = 2
     # print('开始执行策列：', num)
     # auto_playCard(num)
     manually_playCard()
