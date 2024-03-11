@@ -5,6 +5,7 @@ import datetime
 import smtplib
 import os
 import time
+import sys
 
 from apscheduler.schedulers.blocking import BlockingScheduler
 from apscheduler.triggers.cron import CronTrigger 
@@ -122,31 +123,75 @@ class dingDing:
 
     # 4 发送邮件（QQ邮箱）
     @staticmethod
-    def send_email():
+    def send_email(send_all=True, *need_send_filenames):
         """
-        qq邮箱 需要先登录网页版，开启SMTP服务。获取授权码，
-        :return:
+        qq邮箱 需要先登录网页版，开启SMTP服务。获取授权码，A function that takes a boolean as the first argument and optionally an array as the second argument,
+        depending on the value of the first argument.
+
+        :param is_true: A boolean indicating whether to expect an additional array parameter.
+                        - If `True`, no other arguments should be provided.
+                        - If `False`, a single list argument should follow.
+
+        :param args: A variable number of arguments. When `is_true` is `False`, it expects exactly one list argument.
+
+        :raises AssertionError: If the correct number or type of arguments is not provided based on the value of `is_true`.
+
+        :example:
+            >>> send_email(True)  # Correct usage when expecting no additional arguments.
+            First argument is True and no array is passed.
+
+            >>> send_email()  # Correct usage when expecting no additional arguments.
+            First argument is True and no array is passed.
+
+            >>> send_email(False, 1, 2, 3)  # Correct usage when expecting a list argument.
+            First argument is False and an array was passed: [1, 2, 3]
+
+            >>> send_email(False)  # Incorrect usage, missing the required list argument.
+            Traceback (most recent call last):
+                ...
+            AssertionError: When the first argument is False, a single list argument should be provided
+
+            >>> send_email(True, 1, 2, 3)  # Incorrect usage, providing extra arguments with 'True'.
+            Traceback (most recent call last):
+                ...
+            AssertionError: When the first argument is True, no other arguments should be provided
         """
         now_time = datetime.datetime.now().strftime("%H:%M:%S")
         message = MIMEMultipart('related')
         subject = now_time + '打卡'
         message['Subject'] = subject
-        # message['From'] = "日常打卡"
         message['From'] = sender
         message['To'] = receive
 
         # Attach images
         content_html = '<html><body>'
-        for filename in os.listdir(screen_dir):
-            if filename.endswith('.png'):
+        
+        if send_all:
+            for filename in os.listdir(screen_dir):
+                if filename.endswith('.png'):
+                    with open(os.path.join(screen_dir, filename), 'rb') as file:
+                        img_data = file.read()
+                        file.close()
+                        if img_data:
+                            content_html += f'<p>{filename}</p>'
+                            content_html += f'<img src="cid:{filename}" alt="{filename}"><br>'
+                            img = MIMEImage(img_data)
+                            img.add_header('Content-ID', f'<{filename}>')
+                            message.attach(img)
+        else:
+            print(need_send_filenames)
+            for filename in need_send_filenames:
                 with open(os.path.join(screen_dir, filename), 'rb') as file:
-                    content_html += f'<p>{filename}</p>'
-                    content_html += f'<img src="cid:{filename}" alt="{filename}"><br>'
                     img_data = file.read()
                     file.close()
-                    img = MIMEImage(img_data)
-                    img.add_header('Content-ID', f'<{filename}>')
-                    message.attach(img)
+                    print(filename, img_data)
+                    if img_data:
+                        content_html += f'<p>{filename}</p>'
+                        content_html += f'<img src="cid:{filename}" alt="{filename}"><br>'
+                        img = MIMEImage(img_data)
+                        img.add_header('Content-ID', f'<{filename}>')
+                        message.attach(img)
+    
         content_html += '</body></html>'
         content = MIMEText(content_html, 'html', 'utf-8')
         message.attach(content)
@@ -261,6 +306,37 @@ def handling():
             process = subprocess.Popen(operation, shell=False, stdout=subprocess.PIPE)
             process.wait()
 
+# 钉钉意外退出，重新登录钉钉
+def relogin_dingding():
+    d = dingDing(directory)
+    d.open_dingding()
+
+    print('重新登录钉钉中...')
+    operation_list = [
+        'adb shell input tap 550 1675', 'adb shell input tap 700 2000'
+    ]
+    for operation in operation_list:
+        process = subprocess.Popen(operation, shell=False, stdout=subprocess.PIPE)
+        process.wait()
+        time.sleep(2)
+    d.screencap("login_dingding")
+
+    print('输入密码中...')
+    operation_list = [
+        'adb shell input tap 400 1700',
+        'adb shell input tap 860 1986', 'adb shell input tap 286 1686', 'adb shell input tap 860 1986',
+        'adb shell input tap 919 1693', 'adb shell input tap 405 1664', 'adb shell input tap 609 1684',
+        'adb shell input tap 500 800'
+    ]
+    for operation in operation_list:
+        process = subprocess.Popen(operation, shell=False, stdout=subprocess.PIPE)
+        process.wait()
+    time.sleep(5)
+    d.screencap("dingding_home")
+
+    d.send_email(False, 'login_dingding.png','dingding_home.png')
+    d.close_dingding()
+
 # 手动打卡，测试用，下班也生效的话，请在钉钉里设置下班也是极速打卡且每次打开钉钉会自动更新打卡
 def manually_playCard():
     d = dingDing(directory)
@@ -272,8 +348,13 @@ def manually_playCard():
 
 # BlockingScheduler
 if __name__ == '__main__':
+    args = sys.argv[:1]
+    num = 3
+    if len(args) == 1 and args[0].isdigit() and 1 <= int(args[0]) <= 7:
+        num = int(args[0])
+    print('开始执行策列：', num)
+    auto_playCard(num)
+    
+    # relogin_dingding()
     # handling()
-    num = 2
-    # print('开始执行策列：', num)
-    # auto_playCard(num)
-    manually_playCard()
+    # manually_playCard()
