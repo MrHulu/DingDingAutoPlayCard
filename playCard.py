@@ -82,6 +82,14 @@ class dingDing:
         # 点击打卡
         self.adbclick_playcard = 'adb shell input tap %s' % (setting.play_position)
 
+    def test_device(self):
+        operation_list = [self.adbpower, self.adbclear, self.adbpower]
+        print('点亮屏幕，解锁，关闭屏幕')
+        for operation in operation_list:
+            process = subprocess.Popen(operation, shell=False, stdout=subprocess.PIPE)
+            process.wait()
+            time.sleep(1)
+
     # 1 点亮屏幕 》》解锁 》》打开钉钉
     def open_dingding(self):
         operation_list = [self.adbpower, self.adbclear, self.adbopen_dingding]
@@ -179,12 +187,10 @@ class dingDing:
                             img.add_header('Content-ID', f'<{filename}>')
                             message.attach(img)
         else:
-            print(need_send_filenames)
             for filename in need_send_filenames:
                 with open(os.path.join(screen_dir, filename), 'rb') as file:
                     img_data = file.read()
                     file.close()
-                    print(filename, img_data)
                     if img_data:
                         content_html += f'<p>{filename}</p>'
                         content_html += f'<img src="cid:{filename}" alt="{filename}"><br>'
@@ -290,8 +296,21 @@ def auto_playCard(num):
     elif num == 7:
         # [三四]21:00
         trigger = CronTrigger(day_of_week='wed', hour=21, minute=00, jitter=180)
-        scheduler.a881dd_job(dingDing(directory).off_work, trigger=trigger)
+        scheduler.add_job(dingDing(directory).off_work, trigger=trigger)
         trigger = CronTrigger(day_of_week='thu', hour=21, minute=00, jitter=180)
+        scheduler.add_job(dingDing(directory).off_work, trigger=trigger)
+    elif num == 8:
+        # [一二]21:30
+        # [三]21：00
+        # [四]22：30
+        # [五]22:00
+        trigger = CronTrigger(day_of_week='mon,tue', hour=21, minute=30, jitter=180)
+        scheduler.add_job(dingDing(directory).off_work, trigger=trigger)
+        trigger = CronTrigger(day_of_week='wed', hour=21, minute=00, jitter=180)
+        scheduler.add_job(dingDing(directory).off_work, trigger=trigger)
+        trigger = CronTrigger(day_of_week='thu', hour=22, minute=30, jitter=200)
+        scheduler.add_job(dingDing(directory).off_work, trigger=trigger)
+        trigger = CronTrigger(day_of_week='fri', hour=22, minute=0, jitter=600)
         scheduler.add_job(dingDing(directory).off_work, trigger=trigger)
     else:
         trigger = CronTrigger(day_of_week='tue', hour=21, minute=30, jitter=180)
@@ -310,28 +329,38 @@ def handling():
 def relogin_dingding():
     d = dingDing(directory)
     d.open_dingding()
+    print('第一次打开钉钉')
+    time.sleep(13)
+    d.close_dingding()
+    print('第一次关闭钉钉')
+    time.sleep(2)
+    d.open_dingding()
+    print('第二次打开钉钉，为了刷新现在是离线状态')
+    time.sleep(5)
 
     print('重新登录钉钉中...')
     operation_list = [
-        'adb shell input tap 550 1675', 'adb shell input tap 700 2000'
+        'adb shell input tap 550 1675', # 下一步 
+        'adb shell input tap 700 2000'  # 同意并登录
     ]
     for operation in operation_list:
         process = subprocess.Popen(operation, shell=False, stdout=subprocess.PIPE)
         process.wait()
         time.sleep(2)
     d.screencap("login_dingding")
-
+    time.sleep(10)
     print('输入密码中...')
     operation_list = [
-        'adb shell input tap 400 1700',
+        'adb shell input tap 650 1700', # 密码登录
         'adb shell input tap 860 1986', 'adb shell input tap 286 1686', 'adb shell input tap 860 1986',
         'adb shell input tap 919 1693', 'adb shell input tap 405 1664', 'adb shell input tap 609 1684',
-        'adb shell input tap 500 800'
+        'adb shell input tap 500 800'   # 登录
     ]
     for operation in operation_list:
         process = subprocess.Popen(operation, shell=False, stdout=subprocess.PIPE)
         process.wait()
-    time.sleep(5)
+        time.sleep(1)
+    time.sleep(10)
     d.screencap("dingding_home")
 
     d.send_email(False, 'login_dingding.png','dingding_home.png')
@@ -348,13 +377,13 @@ def manually_playCard():
 
 # BlockingScheduler
 if __name__ == '__main__':
-    args = sys.argv[:1]
+    args = sys.argv[1:]
     num = 3
-    if len(args) == 1 and args[0].isdigit() and 1 <= int(args[0]) <= 7:
+    if len(args) == 1 and args[0].isdigit() and 1 <= int(args[0]) <= 8:
         num = int(args[0])
     print('开始执行策列：', num)
-    auto_playCard(num)
-    
+    # auto_playCard(num)
+    # dingDing(directory).test_device()
     # relogin_dingding()
     # handling()
-    # manually_playCard()
+    manually_playCard()    
